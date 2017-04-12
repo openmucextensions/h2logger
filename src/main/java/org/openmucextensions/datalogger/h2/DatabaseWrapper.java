@@ -57,13 +57,16 @@ public class DatabaseWrapper {
 		
 		PreparedStatement statement = connection.prepareStatement("MERGE INTO CHANNELS(ID, DESCRIPTION, UNIT, LAST_INIT) KEY(ID) VALUES(?, ?, ?, ?);");
 		
-		statement.setString(1, channel.getId());
-		statement.setString(2, channel.getDescription());
-		statement.setString(3, channel.getUnit());
-		statement.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
-		statement.execute();
-		statement.close();
-		
+		try {
+			statement.setString(1, channel.getId());
+			statement.setString(2, channel.getDescription());
+			statement.setString(3, channel.getUnit());
+			statement.setTimestamp(4, new Timestamp(System.currentTimeMillis()));
+			statement.execute();
+		} finally {
+			if(statement!=null) statement.close();
+		}
+				
 	}
 	
 	/**
@@ -76,38 +79,34 @@ public class DatabaseWrapper {
 	public synchronized void logValues(List<LogRecordContainer> containers, long timestamp) throws SQLException {
 		
 		if(containers==null) return;
-
 		
 		Timestamp sqlTimestamp = new Timestamp(timestamp);
 		
 		PreparedStatement statement = connection.prepareStatement("INSERT INTO LOGVALUES(ID, TIMESTAMP, VALUE, FLAG) VALUES(?, ?, ?, ?);");
 		
-		for (LogRecordContainer logRecordContainer : containers) {
-			
-			if(logRecordContainer!=null) {
-				
-				if(logRecordContainer.getRecord()!=null && logRecordContainer.getChannelId()!=null) {
+		try {
+			for (LogRecordContainer logRecordContainer : containers) {
+
+				if(isContainerValid(logRecordContainer)) {
 					statement.setString(1, logRecordContainer.getChannelId());
 					statement.setTimestamp(2, sqlTimestamp);
+					statement.setDouble(3, logRecordContainer.getRecord().getValue().asDouble());
 					
-					if(logRecordContainer.getRecord()!=null) {
-						statement.setDouble(3, logRecordContainer.getRecord().getValue().asDouble());
-						
-						if(logRecordContainer.getRecord().getFlag()!=null) {
-							statement.setInt(4, logRecordContainer.getRecord().getFlag().getCode());
-						} else {
-							statement.setInt(4, Flag.VALID.getCode());
-						}
-						
-						statement.addBatch();
+					if (logRecordContainer.getRecord().getFlag() != null) {
+						statement.setInt(4, logRecordContainer.getRecord().getFlag().getCode());
+					} else {
+						statement.setInt(4, Flag.VALID.getCode());
 					}
-					
-				}		
+
+					statement.addBatch();
+				}
+				
 			}
+			
+			statement.executeBatch();
+		} finally {
+			if(statement!=null) statement.close();
 		}
-		
-		statement.executeBatch();
-		statement.close();
 		
 	}
 	
@@ -126,19 +125,25 @@ public class DatabaseWrapper {
 		statement.setTimestamp(2, new Timestamp(startTime));
 		statement.setTimestamp(3, new Timestamp(endTime));
 		
-		ResultSet result = statement.executeQuery();
+		ResultSet result = null;
 		
-		List<Record> records = new ArrayList<>();
+		List<Record> records;
 		
-		while(result.next()) {
-			DoubleValue value = new DoubleValue(result.getDouble("VALUE"));
-			long timestamp = result.getTimestamp("TIMESTAMP").getTime();
-			Flag flag = Flag.newFlag(result.getInt("FLAG"));
-			Record record = new Record(value, timestamp, flag);
-			records.add(record);
+		try {
+			result = statement.executeQuery();
+			records = new ArrayList<>();
+			while (result.next()) {
+				DoubleValue value = new DoubleValue(result.getDouble("VALUE"));
+				long timestamp = result.getTimestamp("TIMESTAMP").getTime();
+				Flag flag = Flag.newFlag(result.getInt("FLAG"));
+				Record record = new Record(value, timestamp, flag);
+				records.add(record);
+			} 
+		} finally {
+			if(result!=null) result.close();
+			if(statement!=null) statement.close();
 		}
 		
-		result.close();
 		return records;
 	}
 	
@@ -149,20 +154,51 @@ public class DatabaseWrapper {
 	 */
 	public synchronized int deleteRecordsBefore(long timestamp) throws SQLException {
 		
-		PreparedStatement statement = connection.prepareStatement("DELETE FROM LOGVALUES WHERE TIMESTAMP<?");
-		statement.setTimestamp(1, new Timestamp(timestamp));
-		int result = statement.executeUpdate();
-		statement.close();
+		PreparedStatement statement = null;
+		int result;
 		
+		try {
+			statement = connection.prepareStatement("DELETE FROM LOGVALUES WHERE TIMESTAMP<?");
+			statement.setTimestamp(1, new Timestamp(timestamp));
+			result = statement.executeUpdate();
+		} finally {
+			if(statement!=null) statement.close();
+		}
+			
 		return result;
 	}
 	
 	private void createTables() throws SQLException {
 		
-		Statement statement = connection.createStatement();
-		statement.execute("CREATE TABLE IF NOT EXISTS CHANNELS(ID VARCHAR(255) PRIMARY KEY, DESCRIPTION VARCHAR(255), UNIT VARCHAR(255), LAST_INIT TIMESTAMP);");
-		statement.execute("CREATE TABLE IF NOT EXISTS LOGVALUES(ID VARCHAR(255), TIMESTAMP TIMESTAMP, VALUE DOUBLE, FLAG INT, PRIMARY KEY (ID, TIMESTAMP));");
-		statement.close();
+		Statement statement = null;
 		
+		try {
+			statement = connection.createStatement();
+			statement.execute(
+					"CREATE TABLE IF NOT EXISTS CHANNELS(ID VARCHAR(255) PRIMARY KEY, DESCRIPTION VARCHAR(255), UNIT VARCHAR(255), LAST_INIT TIMESTAMP);");
+			statement.execute(
+					"CREATE TABLE IF NOT EXISTS LOGVALUES(ID VARCHAR(255), TIMESTAMP TIMESTAMP, VALUE DOUBLE, FLAG INT, PRIMARY KEY (ID, TIMESTAMP));");
+		} finally {
+			if(statement!=null) statement.close();
+		}
+				
+	}
+	
+	/**
+	 * Checks the specified container if it's valid (no mandatory properties are null or empty).
+	 * 
+	 * @param container the container to check
+	 * @return true if the container is valid
+	 */
+	private boolean isContainerValid(LogRecordContainer container) {
+		
+		if(container==null) return false;
+		
+		if(container.getChannelId()==null || container.getChannelId().isEmpty()) return false;
+		if(container.getRecord()==null) return false;
+		if(container.getRecord().getTimestamp()==null) return false;
+		if(container.getRecord().getValue()==null) return false;
+		
+		return true;
 	}
 }
