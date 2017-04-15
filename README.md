@@ -35,3 +35,8 @@ Each record consists of the following information: channel id, timestamp and an 
 | VALUE_TYPE | The OpenMUC value type |
 
 On startup or every change of the channel configuration in OpenMUC, logging will be initiated. The OpenMUC framework tells the logger component(s), which channels should be logged. Every time this happens, the `LAST_INIT` field in the channel information table will be set to the current system time. This enables to identify channels in the database that doesn't exist or at least will not be logged any longer.
+
+The default database name is `./h2logger/database`. If the database file doesn't exist, the directory and a database file will be created during component initialization. The default database user is `sa`, no password will be set. The default database name can be changed by setting the `org.openmucextensions.datalogger.h2.database` system property.
+
+## Periodical cleanup
+Because available disk space is limited on many systems, the component supports a periodical cleanup of old values in the database. This means, that values that are older than a certain threshold compared to the local system time will be deleted. The threshold (interval) can be set in milliseconds by using the system property `org.openmucextensions.datalogger.h2.storageInterval`. The default value is 14 days. If the property is set to zero, periodical cleanup will be disabled.
