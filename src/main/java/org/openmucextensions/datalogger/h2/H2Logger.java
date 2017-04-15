@@ -44,9 +44,11 @@ public class H2Logger implements DataLoggerService {
 			database.connect(databaseFilename);
 			initSuccessful = true;
 			
-			cleanupTimer = new Timer("H2Logger Cleanup Timer", true);
-			cleanupTimer.scheduleAtFixedRate(new CleanupTask(database, storageInterval), 10*1000, 1000*60*60*24);
-			
+			if(storageInterval!=0) {
+				cleanupTimer = new Timer("H2Logger Cleanup Timer", true);
+				cleanupTimer.scheduleAtFixedRate(new CleanupTask(database, storageInterval), 10*1000, 1000*60*60*24);
+			}
+					
 		} catch (ClassNotFoundException e) {
 			logger.error("H2 database driver not found");
 		} catch (SQLException e) {
