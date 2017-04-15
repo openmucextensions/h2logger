@@ -100,17 +100,48 @@ public class H2Logger implements DataLoggerService {
 	public void log(List<LogRecordContainer> containers, long timestamp) {
 		
 		if(!initSuccessful) return;
+				
+		List<LogRecordContainer> doubleValues = new ArrayList<>();
+		List<LogRecordContainer> longValues = new ArrayList<>();
+		List<LogRecordContainer> intValues = new ArrayList<>();
+		List<LogRecordContainer> boolValues = new ArrayList<>();
+		List<LogRecordContainer> stringValues = new ArrayList<>();
 		
-		List<LogRecordContainer> logContainers = new ArrayList<>();
 		for (LogRecordContainer logRecordContainer : containers) {
+			
 			if(channelsToLog.containsKey(logRecordContainer.getChannelId())) {
-				logContainers.add(logRecordContainer);
+
+				LogChannel channel = channelsToLog.get(logRecordContainer.getChannelId());
+				switch (channel.getValueType()) {
+					case LONG:
+						longValues.add(logRecordContainer);
+						break;
+					case INTEGER:
+					case SHORT:
+					case BYTE:
+						intValues.add(logRecordContainer);
+						break;
+					case BOOLEAN:
+						boolValues.add(logRecordContainer);
+						break;
+					case BYTE_ARRAY:
+					case STRING:
+						stringValues.add(logRecordContainer);
+						break;
+				default:
+					doubleValues.add(logRecordContainer);
+					break;
+				}
 			}
 		}
 			
 		try {
-			database.logValues(logContainers, timestamp);
-			// logger.debug("Logged {} value(s) successfully in database", logContainers.size());
+			if(!longValues.isEmpty()) database.logLongValues(longValues, timestamp);
+			if(!intValues.isEmpty()) database.logIntValues(intValues, timestamp);
+			if(!boolValues.isEmpty()) database.logBoolValues(boolValues, timestamp);
+			if(!stringValues.isEmpty()) database.logStringValues(stringValues, timestamp);
+			if(!doubleValues.isEmpty()) database.logDoubleValues(doubleValues, timestamp);
+			
 		} catch (SQLException e) {
 			logger.error("Error while writing log values to database: {}", e.getMessage());
 		}

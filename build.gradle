@@ -20,6 +20,9 @@ dependencies {
 	compile group: 'com.h2database', name: 'h2', version: '1.4.194'
 	embed group: 'com.h2database', name: 'h2', version: '1.4.194'
 	
+	testCompile group: 'junit', name: 'junit', version: '4.12'
+	testCompile "org.mockito:mockito-core:1.+"
+	
 	// compile files('dependencies/yourfile.jar')
     // embed files('dependencies/yourfile.jar')
 }
