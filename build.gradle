@@ -29,7 +29,7 @@ dependencies {
 
 jar {
   manifest {
-    name = "OpenMUC H2 Datalogger"
+    name = "OpenMUC Extensions H2 Datalogger"
     version = "1.0.0"
     symbolicName = "org.openmucextensions.datalogger.h2";
     instruction 'Bundle-ClassPath', '.'
