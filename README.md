@@ -38,5 +38,7 @@ On startup or every change of the channel configuration in OpenMUC, logging will
 
 The default database name is `./h2logger/database`. If the database file doesn't exist, the directory and a database file will be created during component initialization. The default database user is `sa`, no password will be set. The default database name can be changed by setting the `org.openmucextensions.datalogger.h2.database` system property.
 
+The database file size for 1.000.000 `DOUBLE` values (approx. 30 data points, interval 15 minutes, 1 year range) is about 160MB.
+
 ## Periodical cleanup
 Because available disk space is limited on many systems, the component supports a periodical cleanup of old values in the database. This means, that values that are older than a certain threshold compared to the local system time will be deleted. The threshold (interval) can be set in milliseconds by using the system property `org.openmucextensions.datalogger.h2.storageInterval`. The default value is 14 days. If the property is set to zero, periodical cleanup will be disabled.
